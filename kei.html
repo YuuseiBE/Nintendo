@@ -164,23 +164,23 @@
     <script>
         // ページ読み込み時に保存された投稿を取得して表示
         document.addEventListener('DOMContentLoaded', function() {
-            var storedPosts = JSON.parse(localStorage.getItem('friendPosts')) || [];
+            var storedPosts = getCookie('friendPosts') ? JSON.parse(getCookie('friendPosts')) : [];
             var friendList = document.getElementById('friendList');
-
+    
             storedPosts.forEach(function(post) {
                 var li = createPostElement(post);
                 friendList.appendChild(li);
             });
-
+    
             // 投稿が追加された後にスクロールをトップに戻すイベントを設定
             friendList.addEventListener('DOMNodeInserted', function() {
                 scrollToTopIfNeeded();
             });
-
+    
             // 管理者ログインの状態を確認し、管理者機能を有効化
             checkAdminStatus();
         });
-
+    
         // 管理者ログインフォームの送信イベントを取得
         document.getElementById('adminLoginForm').addEventListener('submit', function(event) {
             event.preventDefault(); // デフォルトの動作をキャンセル
@@ -190,79 +190,79 @@
             
             // 正しいパスコード（適宜変更してください）
             var correctPassword = "987654";
-
+    
             // パスコードが一致するかチェック
             if (adminPassword === correctPassword) {
                 alert('管理者としてログインしました。');
                 document.getElementById('adminPassword').value = ''; // パスワードフィールドをリセット
-                localStorage.setItem('isAdminLoggedIn', true); // ログイン状態を保存
+                setCookie('isAdminLoggedIn', true, 7); // ログイン状態を保存（例として7日間有効なCookie）
                 checkAdminStatus(); // 管理者機能を有効化
             } else {
                 alert('パスコードが間違っています。再度お試しください。');
             }
         });
-
+    
         // 管理者としてログインしているかチェックし、管理者機能を有効化する関数
         function checkAdminStatus() {
-            var isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+            var isAdminLoggedIn = getCookie('isAdminLoggedIn');
             if (isAdminLoggedIn) {
                 enableAdminFunctions();
             }
         }
-
+    
         // 管理者機能を有効化
         function enableAdminFunctions() {
             var deleteButtons = document.querySelectorAll('#friendList li button.delete-button');
             deleteButtons.forEach(function(button) {
                 button.style.display = 'inline-block'; // 削除ボタンを表示
             });
-
+    
             setupDeleteButtons(); // 削除ボタンのイベントを設定
             setupReportButtons(); // 通報ボタンのイベントを設定
         }
-
+    
         // フレンドコード投稿フォームの送信イベントを取得
         document.getElementById('friendForm').addEventListener('submit', function(event) {
             event.preventDefault(); // デフォルトの動作をキャンセル
-
+    
             // 入力値を取得
             var nickname = document.getElementById('nickname').value;
             var friendCode = document.getElementById('friendCode').value;
             var description = document.getElementById('description').value;
-
+    
             // 新しい投稿を作成
             var newPost = {
                 nickname: nickname,
                 friendCode: friendCode,
                 description: description
             };
-
-            // ローカルストレージに保存
-            var storedPosts = JSON.parse(localStorage.getItem('friendPosts')) || [];
+    
+            // Cookieに保存
+            var storedPosts = getCookie('friendPosts') ? JSON.parse(getCookie('friendPosts')) : [];
             storedPosts.push(newPost);
-            localStorage.setItem('friendPosts', JSON.stringify(storedPosts));
-
+            setCookie('friendPosts', JSON.stringify(storedPosts), 7); // 例として7日間有効なCookieを保存
+    
             // リストに追加
             var friendList = document.getElementById('friendList');
             var li = createPostElement(newPost);
             friendList.appendChild(li);
-
+    
             // メッセージを表示
             alert('投稿が完了しました。');
-
+    
             // 入力をクリア
             document.getElementById('nickname').value = '';
             document.getElementById('friendCode').value = '';
             document.getElementById('description').value = '';
-
+    
             // 管理者としてログインしている場合、削除ボタンと通報ボタンを有効化
-            var isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+            var isAdminLoggedIn = getCookie('isAdminLoggedIn');
             if (isAdminLoggedIn) {
                 setupDeleteButtons();
                 setupReportButtons();
             }
         });
-
+    
         // トップに戻るボタンの表示を設定
         window.addEventListener('scroll', function() {
             var scrollToTopButton = document.getElementById('scrollToTop');
@@ -272,7 +272,7 @@
                 scrollToTopButton.style.display = 'none';
             }
         });
-
+    
         // トップにスクロールするイベントを設定
         document.getElementById('scrollToTop').addEventListener('click', function() {
             window.scrollTo({
@@ -280,7 +280,7 @@
                 behavior: 'smooth'
             });
         });
-
+    
         // 投稿要素（li要素）を作成する関数
         function createPostElement(post) {
             var li = document.createElement('li');
@@ -296,67 +296,67 @@
             var reportButton = document.createElement('button');
             reportButton.textContent = '通報';
             reportButton.className = 'report-button';
-
+    
             // ボタンクリック時の処理を設定
             deleteButton.addEventListener('click', function() {
                 var li = deleteButton.parentElement;
                 var index = Array.from(li.parentElement.children).indexOf(li);
-
-                // ローカルストレージから削除
-                var storedPosts = JSON.parse(localStorage.getItem('friendPosts'));
+    
+                // Cookieから削除
+                var storedPosts = JSON.parse(getCookie('friendPosts'));
                 storedPosts.splice(index, 1);
-                localStorage.setItem('friendPosts', JSON.stringify(storedPosts));
-
+                setCookie('friendPosts', JSON.stringify(storedPosts), 7); // 例として7日間有効なCookieを保存
+    
                 // UIから削除
                 li.remove();
             });
-
+    
             // ボタンクリック時の処理を設定
             reportButton.addEventListener('click', function() {
                 var reportForm = document.getElementById('reportForm');
                 reportForm.classList.add('show'); // 通報フォームを表示
-
+    
                 // 通報フォームの送信イベント
                 document.getElementById('reportPostForm').addEventListener('submit', function(event) {
                     event.preventDefault(); // デフォルトの動作をキャンセル
-
+    
                     var reportNickname = document.getElementById('reportNickname').value;
                     var reportReason = document.getElementById('reportReason').value;
-
+    
                     // 通報内容を表示
                     var reportMessage = `投稿者: ${post.nickname}\n理由: ${reportReason}`;
-
+    
                     // Discordに通報内容を送信
                     sendDiscordMessage(reportMessage);
-
+    
                     // 通報フォームを非表示にする
                     reportForm.classList.remove('show');
-
+    
                     // 入力をクリア
                     document.getElementById('reportNickname').value = '';
                     document.getElementById('reportReason').value = '';
                 });
             });
-
+    
             li.appendChild(nickname);
             li.appendChild(friendCode);
             li.appendChild(description);
-
+    
             // 管理者ログイン中の場合のみ削除ボタンと通報ボタンを追加
-            var isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+            var isAdminLoggedIn = getCookie('isAdminLoggedIn');
             if (isAdminLoggedIn) {
                 li.appendChild(deleteButton);
                 li.appendChild(reportButton);
             }
-
+    
             return li;
         }
-
+    
         // Discordにメッセージを送信する関数（fetch APIを使用）
         function sendDiscordMessage(message) {
             // DiscordのWebhook URL
             var DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1262298713317969961/3L70bLI08lY0pbN4FgSfeCHQnQjbSKF6QhXcC5ydzUsz3vrrkwFp2_DMJHlKAGa23iDE';
-
+    
             fetch(DISCORD_WEBHOOK_URL, {
                 method: 'POST',
                 headers: {
@@ -376,7 +376,34 @@
                 alert('通報の送信に失敗しました。エラー: ' + error.message);
             });
         }
-
+    
+        // Cookieにデータを保存する関数
+        function setCookie(name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
+        }
+    
+        // Cookieからデータを取得する関数
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i];
+                while (cookie.charAt(0) === ' ') {
+                    cookie = cookie.substring(1, cookie.length);
+                }
+                if (cookie.indexOf(nameEQ) === 0) {
+                    return cookie.substring(nameEQ.length, cookie.length);
+                }
+            }
+            return null;
+        }
+    
         // ページが読み込まれた後に必要な削除ボタンと通報ボタンの設定
         function setupDeleteButtons() {
             var deleteButtons = document.querySelectorAll('#friendList li button.delete-button');
@@ -384,18 +411,18 @@
                 button.addEventListener('click', function() {
                     var li = button.parentElement;
                     var index = Array.from(li.parentElement.children).indexOf(li);
-
-                    // ローカルストレージから削除
-                    var storedPosts = JSON.parse(localStorage.getItem('friendPosts'));
+    
+                    // Cookieから削除
+                    var storedPosts = JSON.parse(getCookie('friendPosts'));
                     storedPosts.splice(index, 1);
-                    localStorage.setItem('friendPosts', JSON.stringify(storedPosts));
-
+                    setCookie('friendPosts', JSON.stringify(storedPosts), 7); // 例として7日間有効なCookieを保存
+    
                     // UIから削除
                     li.remove();
                 });
             });
         }
-
+    
         // 通報ボタンのクリックイベントを設定
         function setupReportButtons() {
             var reportButtons = document.querySelectorAll('#friendList li button.report-button');
@@ -406,7 +433,7 @@
                 });
             });
         }
-
+    
         // スクロールが上部にある場合にトップボタンを表示
         function scrollToTopIfNeeded() {
             var scrollToTopButton = document.getElementById('scrollToTop');
@@ -416,13 +443,14 @@
                 scrollToTopButton.style.display = 'none';
             }
         }
-
+    
         // ページが読み込まれた後に必要な削除ボタンと通報ボタンの設定
         setupDeleteButtons();
         setupReportButtons();
-
+    
         // スクロールイベントを追加してトップに移動
         window.addEventListener('scroll', scrollToTopIfNeeded);
     </script>
+    
 </body>
 </html>
