@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nintendo フレンド掲示板</title>
+    <style>
+        body {
+            background-color: #e1c4ff; /* 薄い赤紫の背景色 */
+            color: #333; /* テキストカラー */
+            font-family: Arial, sans-serif; /* フォント */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #a9e5ff; /* 水色の背景 */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+            flex: 1;
+            overflow-y: auto;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        form input, form button, form textarea {
+            margin: 5px;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        li span {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        li p {
+            margin: 5px 0;
+        }
+        li button {
+            padding: 5px 10px;
+            background-color: #ff7575;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            align-self: flex-end;
+            margin-left: 5px;
+        }
+        .admin-login {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .admin-login input[type="password"] {
+            width: 100px;
+            text-align: center;
+        }
+        .report-button {
+            margin-top: 10px;
+            text-align: center;
+            background-color: #ffa500;
+        }
+        .report-form {
+            display: none; /* 初期は非表示 */
+        }
+        .report-form.show {
+            display: block; /* 表示時のスタイル */
+        }
+        .scroll-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none; /* 初期は非表示 */
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="admin-login" id="adminLogin">
+            <form id="adminLoginForm">
+                <label for="adminPassword">管理者パスコード:</label>
+                <input type="password" id="adminPassword" name="adminPassword" maxlength="6" required>
+                <button type="submit">ログイン</button>
+            </form>
+        </div>
+        <h1>Nintendo フレンド掲示板</h1>
+        
+        <!-- フレンドコード投稿フォーム -->
+        <form id="friendForm">
+            <label for="nickname">ニックネーム:</label>
+            <input type="text" id="nickname" name="nickname" required>
+            
+            <label for="friendCode">フレンドコード:</label>
+            <input type="text" id="friendCode" name="friendCode" required>
+            
+            <label for="description">説明・詳細:</label>
+            <textarea id="description" name="description" rows="4"></textarea>
+            
+            <button type="submit">投稿する</button>
+        </form>
+        
+        <!-- フレンドコード一覧 -->
+        <h2>フレンドコード一覧</h2>
+        <ul id="friendList">
+            <!-- ここに投稿されたフレンドコードが追加されます -->
+        </ul>
+        
+        <!-- 通報フォーム -->
+        <div class="report-form" id="reportForm">
+            <h3>投稿の通報</h3>
+            <form id="reportPostForm">
+                <label for="reportNickname">ニックネーム:</label>
+                <input type="text" id="reportNickname" name="reportNickname" required>
+                
+                <label for="reportReason">通報理由:</label>
+                <input type="text" id="reportReason" name="reportReason" required>
+                
+                <button type="submit">通報する</button>
+            </form>
+        </div>
+        
+    </div>
+
+    <!-- トップに戻るボタン -->
+    <button class="scroll-to-top" id="scrollToTop">トップに戻る</button>
+
+
+    <script>
+        // ページ読み込み時に保存された投稿を取得して表示
+        document.addEventListener('DOMContentLoaded', function() {
+            var storedPosts = JSON.parse(localStorage.getItem('friendPosts')) || [];
+            var friendList = document.getElementById('friendList');
+
+            storedPosts.forEach(function(post) {
+                var li = createPostElement(post);
+                friendList.appendChild(li);
+            });
+
+            // 投稿が追加された後にスクロールをトップに戻すイベントを設定
+            friendList.addEventListener('DOMNodeInserted', function() {
+                scrollToTopIfNeeded();
+            });
+
+            // 管理者ログインの状態を確認し、管理者機能を有効化
+            checkAdminStatus();
+        });
+
+        // 管理者ログインフォームの送信イベントを取得
+        document.getElementById('adminLoginForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // デフォルトの動作をキャンセル
+            
+            // パスコードを取得
+            var adminPassword = document.getElementById('adminPassword').value;
+            
+            // 正しいパスコード（適宜変更してください）
+            var correctPassword = "987654";
+
+            // パスコードが一致するかチェック
+            if (adminPassword === correctPassword) {
+                alert('管理者としてログインしました。');
+                document.getElementById('adminPassword').value = ''; // パスワードフィールドをリセット
+                localStorage.setItem('isAdminLoggedIn', true); // ログイン状態を保存
+                checkAdminStatus(); // 管理者機能を有効化
+            } else {
+                alert('パスコードが間違っています。再度お試しください。');
+            }
+        });
+
+        // 管理者としてログインしているかチェックし、管理者機能を有効化する関数
+        function checkAdminStatus() {
+            var isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+            if (isAdminLoggedIn) {
+                enableAdminFunctions();
+            }
+        }
+
+        // 管理者機能を有効化
+        function enableAdminFunctions() {
+            var deleteButtons = document.querySelectorAll('#friendList li button.delete-button');
+            deleteButtons.forEach(function(button) {
+                button.style.display = 'inline-block'; // 削除ボタンを表示
+            });
+
+            setupDeleteButtons(); // 削除ボタンのイベントを設定
+            setupReportButtons(); // 通報ボタンのイベントを設定
+        }
+
+        // フレンドコード投稿フォームの送信イベントを取得
+        document.getElementById('friendForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // デフォルトの動作をキャンセル
+
+            // 入力値を取得
+            var nickname = document.getElementById('nickname').value;
+            var friendCode = document.getElementById('friendCode').value;
+            var description = document.getElementById('description').value;
+
+            // 新しい投稿を作成
+            var newPost = {
+                nickname: nickname,
+                friendCode: friendCode,
+                description: description
+            };
+
+            // ローカルストレージに保存
+            var storedPosts = JSON.parse(localStorage.getItem('friendPosts')) || [];
+            storedPosts.push(newPost);
+            localStorage.setItem('friendPosts', JSON.stringify(storedPosts));
+
+            // リストに追加
+            var friendList = document.getElementById('friendList');
+            var li = createPostElement(newPost);
+            friendList.appendChild(li);
+
+            // メッセージを表示
+            alert('投稿が完了しました。');
+
+            // 入力をクリア
+            document.getElementById('nickname').value = '';
+            document.getElementById('friendCode').value = '';
+            document.getElementById('description').value = '';
+
+            // 管理者としてログインしている場合、削除ボタンと通報ボタンを有効化
+            var isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+            if (isAdminLoggedIn) {
+                setupDeleteButtons();
+                setupReportButtons();
+            }
+        });
+
+        // トップに戻るボタンの表示を設定
+        window.addEventListener('scroll', function() {
+            var scrollToTopButton = document.getElementById('scrollToTop');
+            if (window.scrollY > 200) {
+                scrollToTopButton.style.display = 'block';
+            } else {
+                scrollToTopButton.style.display = 'none';
+            }
+        });
+
+        // トップにスクロールするイベントを設定
+        document.getElementById('scrollToTop').addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // 投稿要素（li要素）を作成する関数
+        function createPostElement(post) {
+            var li = document.createElement('li');
+            var nickname = document.createElement('span');
+            nickname.textContent = `ニックネーム: ${post.nickname}`;
+            var friendCode = document.createElement('p');
+            friendCode.textContent = `フレンドコード: ${post.friendCode}`;
+            var description = document.createElement('p');
+            description.textContent = `詳細:\n${post.description}`;
+            var deleteButton = document.createElement('button');
+            deleteButton.textContent = '削除';
+            deleteButton.className = 'delete-button';
+            var reportButton = document.createElement('button');
+            reportButton.textContent = '通報';
+            reportButton.className = 'report-button';
+
+            // ボタンクリック時の処理を設定
+            deleteButton.addEventListener('click', function() {
+                var li = deleteButton.parentElement;
+                var index = Array.from(li.parentElement.children).indexOf(li);
+
+                // ローカルストレージから削除
+                var storedPosts = JSON.parse(localStorage.getItem('friendPosts'));
+                storedPosts.splice(index, 1);
+                localStorage.setItem('friendPosts', JSON.stringify(storedPosts));
+
+                // UIから削除
+                li.remove();
+            });
+
+            // ボタンクリック時の処理を設定
+            reportButton.addEventListener('click', function() {
+                var reportForm = document.getElementById('reportForm');
+                reportForm.classList.add('show'); // 通報フォームを表示
+
+                // 通報フォームの送信イベント
+                document.getElementById('reportPostForm').addEventListener('submit', function(event) {
+                    event.preventDefault(); // デフォルトの動作をキャンセル
+
+                    var reportNickname = document.getElementById('reportNickname').value;
+                    var reportReason = document.getElementById('reportReason').value;
+
+                    // 通報内容を表示
+                    var reportMessage = `投稿者: ${post.nickname}\n理由: ${reportReason}`;
+
+                    // Discordに通報内容を送信
+                    sendDiscordMessage(reportMessage);
+
+                    // 通報フォームを非表示にする
+                    reportForm.classList.remove('show');
+
+                    // 入力をクリア
+                    document.getElementById('reportNickname').value = '';
+                    document.getElementById('reportReason').value = '';
+                });
+            });
+
+            li.appendChild(nickname);
+            li.appendChild(friendCode);
+            li.appendChild(description);
+
+            // 管理者ログイン中の場合のみ削除ボタンと通報ボタンを追加
+            var isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+            if (isAdminLoggedIn) {
+                li.appendChild(deleteButton);
+                li.appendChild(reportButton);
+            }
+
+            return li;
+        }
+
+        // Discordにメッセージを送信する関数（fetch APIを使用）
+        function sendDiscordMessage(message) {
+            // DiscordのWebhook URL
+            var DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1262298713317969961/3L70bLI08lY0pbN4FgSfeCHQnQjbSKF6QhXcC5ydzUsz3vrrkwFp2_DMJHlKAGa23iDE';
+
+            fetch(DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: message,
+                }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('送信に失敗しました。');
+                }
+                alert('通報が送信されました。');
+            })
+            .catch(error => {
+                alert('通報の送信に失敗しました。エラー: ' + error.message);
+            });
+        }
+
+        // ページが読み込まれた後に必要な削除ボタンと通報ボタンの設定
+        function setupDeleteButtons() {
+            var deleteButtons = document.querySelectorAll('#friendList li button.delete-button');
+            deleteButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var li = button.parentElement;
+                    var index = Array.from(li.parentElement.children).indexOf(li);
+
+                    // ローカルストレージから削除
+                    var storedPosts = JSON.parse(localStorage.getItem('friendPosts'));
+                    storedPosts.splice(index, 1);
+                    localStorage.setItem('friendPosts', JSON.stringify(storedPosts));
+
+                    // UIから削除
+                    li.remove();
+                });
+            });
+        }
+
+        // 通報ボタンのクリックイベントを設定
+        function setupReportButtons() {
+            var reportButtons = document.querySelectorAll('#friendList li button.report-button');
+            reportButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var reportForm = document.getElementById('reportForm');
+                    reportForm.classList.add('show'); // 通報フォームを表示
+                });
+            });
+        }
+
+        // スクロールが上部にある場合にトップボタンを表示
+        function scrollToTopIfNeeded() {
+            var scrollToTopButton = document.getElementById('scrollToTop');
+            if (window.scrollY > 200) {
+                scrollToTopButton.style.display = 'block';
+            } else {
+                scrollToTopButton.style.display = 'none';
+            }
+        }
+
+        // ページが読み込まれた後に必要な削除ボタンと通報ボタンの設定
+        setupDeleteButtons();
+        setupReportButtons();
+
+        // スクロールイベントを追加してトップに移動
+        window.addEventListener('scroll', scrollToTopIfNeeded);
+    </script>
+</body>
+</html>
